@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Тренажер ser</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; padding: 24px; background: #f6f7fb; color: #111; }
+    .app { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 8px 28px rgba(0,0,0,.08); }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .ua { padding: 12px 14px; background: #f0f3ff; border-radius: 12px; margin-bottom: 12px; }
+    .ua .label { font-size: 12px; opacity: .75; margin-bottom: 6px; }
+    .ua .text { font-size: 18px; font-weight: 600; }
+    .progress { font-size: 12px; opacity: .75; margin: 10px 0 14px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 16px; }
+    button.choice{
+      border: 1px solid #d7dbe7; background: #fff; border-radius: 12px;
+      padding: 10px 12px; cursor: pointer; font-weight: 600;
+      transition: transform .02s ease, background .2s ease, border-color .2s ease;
+    }
+    button.choice:hover { background: #f7f9ff; border-color: #b9c3ff; }
+    button.choice:active { transform: scale(0.99); }
+    button.choice.selected { background: #e8edff; border-color: #7c8cff; }
+    .sentenceBox { padding: 12px 14px; background: #fafbff; border: 1px solid #e7eaf5; border-radius: 12px; }
+    .sentenceLabel { font-size: 12px; opacity: .75; margin-bottom: 6px; }
+    .sentence { font-size: 18px; font-weight: 700; letter-spacing: .2px; }
+    .feedback { margin-top: 12px; min-height: 28px; font-weight: 700; }
+    .ok { color: #0a7a2f; }
+    .bad { color: #b00020; }
+    .controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .smallbtn{
+      border: 1px solid #d7dbe7; background: #fff; border-radius: 12px;
+      padding: 10px 12px; cursor: pointer; font-weight: 600;
+    }
+    .smallbtn[disabled] { opacity: .5; cursor: not-allowed; }
+    .hint { font-size: 12px; opacity: .75; margin-top: 10px; line-height: 1.4; }
+    .stepTitle { margin: 12px 0 6px; font-size: 14px; font-weight: 800; }
+    .pill { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #f1f2f8; }
+    .answerBox{
+      margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+      background: #fff8e6; border: 1px solid #ffe2a8; display: none;
+    }
+    .answerBox .t { font-size: 12px; opacity: .75; margin-bottom: 4px; }
+    .answerBox .a { font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Тренажер дієслова <span class="pill">ser</span></h1>
+
+    <div class="ua">
+      <div class="label">Речення українською</div>
+      <div id="uaText" class="text">—</div>
+    </div>
+
+    <div class="sentenceBox">
+      <div class="sentenceLabel">Твоє речення іспанською</div>
+      <div id="esSentence" class="sentence">—</div>
+    </div>
+
+    <div class="progress" id="progress">Крок 1/3</div>
+
+    <div id="stepArea"></div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="answerBox" id="answerBox">
+      <div class="t">Правильна відповідь</div>
+      <div class="a" id="answerText">—</div>
+    </div>
+
+    <div class="controls">
+      <button class="smallbtn" id="resetBtn" type="button">Скинути вибір</button>
+      <button class="smallbtn" id="skipBtn" type="button">Пропустити</button>
+      <button class="smallbtn" id="toggleAnswerBtn" type="button">Показати відповідь</button>
+      <button class="smallbtn" id="nextBtn" type="button" disabled>Далі</button>
+    </div>
+
+    <div class="hint">
+      Як працює: обери займенник → форму <b>ser</b> → слово. Якщо відповідь правильна — натисни <b>Далі</b>.
+    </div>
+  </div>
+
+<script>
+  // 1) Список прикметників
+  const adjectives = [
+    "alto","bajo","grande","pequeño","joven","viejo","nuevo","antiguo","inteligente","tonto","amable","simpático","antipático",
+    "serio","gracioso","trabajador","perezoso","responsable","irresponsable","honesto","deshonesto","fuerte","débil","rico","pobre",
+    "famoso","desconocido","importante","interesante","aburrido","fácil","difícil","posible","imposible","correcto","incorrecto",
+    "verdadero","falso","necesario","innecesario","seguro","peligroso","tranquilo","nervioso","orgulloso","tímido","abierto","cerrado",
+    "puntual","impuntual","moderno","tradicional","rápido","lento","limpio","sucio","caro","barato","completo","incompleto","perfecto",
+    "imperfecto","normal","extraño","lógico","ilógico","humano","natural","artificial","público","privado","principal","secundario",
+    "común","raro","útil","inútil","justo","injusto","claro","oscuro","sencillo","complicado","correcto","exacto","aproximado",
+    "permanente","temporal","obligatorio","opcional","ideal","real","social","cultural","político","económico","profesional","personal",
+    "académico","oficial"
+  ];
+
+  // 2) Імена/іменники (з іменами для комбінацій)
+  const nouns = [
+    { ua: "Педро", es: "Pedro" },
+    { ua: "Антоніо", es: "Antonio" },
+    { ua: "Анна", es: "Ana" },
+    { ua: "Марія", es: "María" },
+    { ua: "Хуан", es: "Juan" },
+    { ua: "Карлос", es: "Carlos" },
+    { ua: "Міґель", es: "Miguel" },
+    { ua: "Луїс", es: "Luis" },
+    { ua: "Хосе", es: "José" },
+    { ua: "Пабло", es: "Pablo" },
+    { ua: "Дієго", es: "Diego" },
+    { ua: "Хав’єр", es: "Javier" },
+    { ua: "Рауль", es: "Raúl" },
+    { ua: "Фернандо", es: "Fernando" },
+    { ua: "Альваро", es: "Álvaro" },
+    { ua: "Сергіо", es: "Sergio" },
+    { ua: "Лаура", es: "Laura" },
+    { ua: "Сара", es: "Sara" },
+    { ua: "Кармен", es: "Carmen" },
+    { ua: "Лусія", es: "Lucía" },
+    { ua: "Елена", es: "Elena" },
+    { ua: "Софія", es: "Sofía" },
+    { ua: "Паола", es: "Paola" },
+    { ua: "Валерія", es: "Valeria" },
+
+    { ua: "вчитель", es: "profesor" },
+    { ua: "вчителька", es: "profesora" },
+    { ua: "хлопець", es: "chico" },
+    { ua: "дівчина", es: "chica" },
+    { ua: "студент", es: "estudiante" },
+    { ua: "лікар", es: "médico" },
+    { ua: "друг", es: "amigo" },
+    { ua: "подруга", es: "amiga" }
+  ];
+
+  // 3) Займенники та ser
+  const pronouns = [
+    { key: "yo", ua: "я", es: "yo", ser: "soy" },
+    { key: "tu", ua: "ти", es: "tú", ser: "eres" },
+    { key: "el", ua: "він", es: "él", ser: "es" },
+    { key: "ella", ua: "вона", es: "ella", ser: "es" },
+    { key: "nosotros", ua: "ми (чол.)", es: "nosotros", ser: "somos" },
+    { key: "nosotras", ua: "ми (жін.)", es: "nosotras", ser: "somos" },
+    { key: "ellos", ua: "вони (чол.)", es: "ellos", ser: "son" },
+    { key: "ellas", ua: "вони (жін.)", es: "ellas", ser: "son" },
+    { key: "ustedes", ua: "ви (офіційно)", es: "ustedes", ser: "son" }
+  ];
+
+  const serForms = [
+    { key: "soy", label: "soy" },
+    { key: "eres", label: "eres" },
+    { key: "es", label: "es" },
+    { key: "somos", label: "somos" },
+    { key: "son", label: "son" }
+  ];
+
+  // 4) Шаблони речень
+  const sentenceTemplates = [
+    { ua: "Я Марія.", type: "noun", correct: { pronKey: "yo", nounEs: "María" } },
+    { ua: "Вони хлопці.", type: "noun", correct: { pronKey: "ellos", nounEs: "chicos" } },
+    { ua: "Він вчитель.", type: "noun", correct: { pronKey: "el", nounEs: "profesor" } },
+
+    { ua: "Я розумний.", type: "adj", correct: { pronKey: "yo", adjEs: "inteligente" } },
+    { ua: "Ти високий.", type: "adj", correct: { pronKey: "tu", adjEs: "alto" } },
+    { ua: "Вона серйозна.", type: "adj", correct: { pronKey: "ella", adjEs: "serio" } },
+    { ua: "Ми пунктуальні.", type: "adj", correct: { pronKey: "nosotros", adjEs: "puntual" } },
+    { ua: "Вони смішні.", type: "adj", correct: { pronKey: "ellos", adjEs: "gracioso" } },
+    { ua: "Він відповідальний.", type: "adj", correct: { pronKey: "el", adjEs: "responsable" } },
+    { ua: "Вона привітна.", type: "adj", correct: { pronKey: "ella", adjEs: "amable" } }
+  ];
+
+  // 5) Утиліти
+  function randInt(max) { return Math.floor(Math.random() * max); }
+  function sample(arr) { return arr[randInt(arr.length)]; }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // 6) Стан
+  let current = null;
+  let step = 1;
+  let pickedPron = null;
+  let pickedSer = null;
+  let pickedWord = null;
+  let isSolved = false;
+
+  const uaTextEl = document.getElementById("uaText");
+  const esSentenceEl = document.getElementById("esSentence");
+  const stepArea = document.getElementById("stepArea");
+  const feedbackEl = document.getElementById("feedback");
+  const progressEl = document.getElementById("progress");
+
+  const nextBtn = document.getElementById("nextBtn");
+  const toggleAnswerBtn = document.getElementById("toggleAnswerBtn");
+
+  const answerBoxEl = document.getElementById("answerBox");
+  const answerTextEl = document.getElementById("answerText");
+
+  function correctWordForCurrent() {
+    return (current.type === "adj") ? current.correct.adjEs : current.correct.nounEs;
+  }
+
+  function correctSentenceEs() {
+    const p = pronouns.find(x => x.key === current.correct.pronKey);
+    const w = correctWordForCurrent();
+    return `${p.es} ${p.ser} ${w}.`;
+  }
+
+  function hideAnswer() {
+    answerBoxEl.style.display = "none";
+    toggleAnswerBtn.textContent = "Показати відповідь";
+    toggleAnswerBtn.dataset.state = "hidden";
+  }
+
+  function showAnswer() {
+    answerTextEl.textContent = correctSentenceEs();
+    answerBoxEl.style.display = "block";
+    toggleAnswerBtn.textContent = "Сховати відповідь";
+    toggleAnswerBtn.dataset.state = "shown";
+  }
+
+  function resetPicks(keepSentence=false) {
+    step = 1;
+    pickedPron = null;
+    pickedSer = null;
+    pickedWord = null;
+    isSolved = false;
+
+    feedbackEl.textContent = "";
+    feedbackEl.className = "feedback";
+    nextBtn.disabled = true;
+
+    hideAnswer();
+    answerTextEl.textContent = "—";
+
+    if (!keepSentence) current = null;
+    render();
+  }
+
+  function newTask() {
+    current = sample(sentenceTemplates);
+    resetPicks(true);
+    render();
+  }
+
+  // Побудова речення з вибору
+  function buildSentence() {
+    const parts = [];
+    if (pickedPron) parts.push(pickedPron.es);
+    if (pickedSer) parts.push(pickedSer.key);
+    if (pickedWord) parts.push(pickedWord);
+    return parts.length ? parts.join(" ") + "." : "—";
+  }
+
+  // Перевірка: БЕЗ автопереходу (лише кнопка "Далі")
+  function checkIfCompleteAndValidate() {
+    if (!(pickedPron && pickedSer && pickedWord)) return;
+
+    const correctPron = pronouns.find(p => p.key === current.correct.pronKey);
+    const correctSer = correctPron.ser;
+    const correctWord = correctWordForCurrent();
+
+    const ok = (pickedPron.key === correctPron.key) && (pickedSer.key === correctSer) && (pickedWord === correctWord);
+
+    if (ok) {
+      feedbackEl.textContent = "Правильно!";
+      feedbackEl.className = "feedback ok";
+      isSolved = true;
+      nextBtn.disabled = false;
+    } else {
+      feedbackEl.textContent = "Неправильно. Спробуй ще раз.";
+      feedbackEl.className = "feedback bad";
+      isSolved = false;
+      nextBtn.disabled = true;
+    }
+  }
+
+  // Рендер
+  function render() {
+    if (!current) { newTask(); return; }
+
+    uaTextEl.textContent = current.ua;
+    esSentenceEl.textContent = buildSentence();
+    progressEl.textContent = `Крок ${step}/3`;
+
+    stepArea.innerHTML = "";
+    if (step === 1) renderStep1();
+    if (step === 2) renderStep2();
+    if (step === 3) renderStep3();
+  }
+
+  function renderChoices(title, choices, onPick) {
+    const titleEl = document.createElement("div");
+    titleEl.className = "stepTitle";
+    titleEl.textContent = title;
+    stepArea.appendChild(titleEl);
+
+    const row = document.createElement("div");
+    row.className = "row";
+
+    choices.forEach(ch => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "choice";
+      btn.textContent = ch.label;
+      if (ch.selected) btn.classList.add("selected");
+      btn.addEventListener("click", () => onPick(ch));
+      row.appendChild(btn);
+    });
+
+    stepArea.appendChild(row);
+  }
+
+  function renderStep1() {
+    const correctPronKey = current.correct.pronKey;
+    const correctPron = pronouns.find(p => p.key === correctPronKey);
+
+    const pool = pronouns.filter(p => p.key !== correctPronKey);
+    const distractors = shuffle(pool).slice(0, 4);
+
+    const options = shuffle([correctPron, ...distractors]).map(p => ({
+      label: p.es,
+      value: p,
+      selected: pickedPron && pickedPron.key === p.key
+    }));
+
+    renderChoices("1) Обери займенник", options, (ch) => {
+      if (isSolved) return;
+      pickedPron = ch.value;
+      step = 2;
+      feedbackEl.textContent = "";
+      feedbackEl.className = "feedback";
+      render();
+    });
+  }
+
+  function renderStep2() {
+    const correctPron = pronouns.find(p => p.key === current.correct.pronKey);
+    const correctSerKey = correctPron.ser;
+
+    const correctSer = serForms.find(s => s.key === correctSerKey);
+    const pool = serForms.filter(s => s.key !== correctSerKey);
+    const distractors = shuffle(pool).slice(0, 3);
+
+    const options = shuffle([correctSer, ...distractors]).map(s => ({
+      label: s.label,
+      value: s,
+      selected: pickedSer && pickedSer.key === s.key
+    }));
+
+    renderChoices("2) Обери правильну форму ser", options, (ch) => {
+      if (isSolved) return;
+      pickedSer = ch.value;
+      step = 3;
+      feedbackEl.textContent = "";
+      feedbackEl.className = "feedback";
+      render();
+    });
+  }
+
+  function renderStep3() {
+    // КРОК 3: рівно 6 варіантів (1 правильний + 5 випадкових)
+    const correctWord = correctWordForCurrent();
+
+    const nounPool = nouns.map(n => n.es);
+    if (!nounPool.includes("chicos")) nounPool.push("chicos");
+
+    const wordPool = Array.from(new Set([...adjectives, ...nounPool]))
+      .filter(w => w !== correctWord);
+
+    const distractors = shuffle(wordPool).slice(0, 5);
+
+    const options = shuffle([correctWord, ...distractors]).map(w => ({
+      label: w,
+      value: w,
+      selected: pickedWord === w
+    }));
+
+    renderChoices("3) Обери слово", options, (ch) => {
+      if (isSolved) return;
+      pickedWord = ch.value;
+      esSentenceEl.textContent = buildSentence();
+      checkIfCompleteAndValidate();
+      render();
+    });
+  }
+
+  // Кнопки
+  document.getElementById("resetBtn").addEventListener("click", () => resetPicks(true));
+
+  document.getElementById("skipBtn").addEventListener("click", () => {
+    newTask();
+  });
+
+  toggleAnswerBtn.addEventListener("click", () => {
+    const state = toggleAnswerBtn.dataset.state || "hidden";
+    if (state === "hidden") showAnswer();
+    else hideAnswer();
+  });
+
+  nextBtn.addEventListener("click", () => {
+    if (!isSolved) return;
+    newTask();
+  });
+
+  // ініціалізація стану кнопки відповіді
+  hideAnswer();
+
+  // старт
+  newTask();
+</script>
+</body>
+</html>
